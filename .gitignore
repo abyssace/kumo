@@ -1,0 +1,25 @@
+# Build
+target/
+
+# Índice y estado local de kumo (nunca se versiona)
+.kumo/
+*.kumo-index.json
+
+# Secretos y configuración local
+.env
+
+# Logs
+*.log
+
+# IDEs
+.idea/
+*.iml
+.vscode/
+.settings/
+.classpath
+.project
+*.code-workspace
+
+# Sistema operativo
+.DS_Store
+Thumbs.db
