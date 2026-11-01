@@ -7,9 +7,16 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import dev.abyssace.kumo.store.InMemoryVectorStore;
+import dev.abyssace.kumo.store.JsonVectorStore;
+import dev.abyssace.kumo.store.VectorStore;
+import java.nio.file.Path;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 
 class AppConfigTest {
+
+    @TempDir
+    Path tempDir;
 
     @Test
     void losDefaultsCoincidenConLaEspecificacion() {
@@ -95,9 +102,25 @@ class AppConfigTest {
     }
 
     @Test
-    void elStoreJsonAunNoEstaDisponible() {
+    void laFabricaCreaElStoreJsonDentroDelCorpus() {
         AppConfig config = AppConfig.builder().vectorStore(StoreType.JSON).build();
 
-        assertThrows(UnsupportedOperationException.class, () -> StoreFactory.create(config));
+        VectorStore store = StoreFactory.create(config, tempDir);
+
+        JsonVectorStore json = assertInstanceOf(JsonVectorStore.class, store);
+        assertEquals(
+                tempDir.toAbsolutePath().normalize().resolve(".kumo").resolve("index.json"),
+                json.indexFile());
+        assertEquals("embeddinggemma", json.embeddingModel());
+    }
+
+    @Test
+    void elStoreJsonSinCarpetaDeCorpusFallaConMensajeClaro() {
+        AppConfig config = AppConfig.builder().vectorStore(StoreType.JSON).build();
+
+        IllegalArgumentException error = assertThrows(
+                IllegalArgumentException.class, () -> StoreFactory.create(config));
+
+        assertTrue(error.getMessage().contains("corpus"));
     }
 }

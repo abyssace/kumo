@@ -80,6 +80,20 @@ public final class InMemoryVectorStore implements VectorStore {
         return chunks.size();
     }
 
+    /**
+     * Copia ordenada de los fragmentos guardados. La usa
+     * {@link JsonVectorStore} para volcar el índice a disco sin exponer el mapa
+     * interno.
+     */
+    List<EmbeddedChunk> snapshot() {
+        return List.copyOf(chunks.values());
+    }
+
+    /** Dimensión de los vectores guardados, o -1 si el store está vacío. */
+    int dimensions() {
+        return dimensions;
+    }
+
     /** Expuesto para diagnóstico y pruebas. */
     public SimilarityMetric metric() {
         return metric;

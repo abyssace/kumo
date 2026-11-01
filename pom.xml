@@ -26,6 +26,7 @@
 
     <!-- Versiones verificadas en Maven Central (>= 2 semanas de antigüedad). -->
     <jackson.version>2.22.4</jackson.version>
+    <pdfbox.version>3.0.8</pdfbox.version>
     <junit.version>6.1.3</junit.version>
 
     <maven-compiler-plugin.version>3.16.0</maven-compiler-plugin.version>
@@ -53,6 +54,15 @@
   </dependencyManagement>
 
   <dependencies>
+    <dependency>
+      <groupId>com.fasterxml.jackson.core</groupId>
+      <artifactId>jackson-databind</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>org.apache.pdfbox</groupId>
+      <artifactId>pdfbox</artifactId>
+      <version>${pdfbox.version}</version>
+    </dependency>
     <dependency>
       <groupId>org.junit.jupiter</groupId>
       <artifactId>junit-jupiter</artifactId>

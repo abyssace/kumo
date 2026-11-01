@@ -90,6 +90,22 @@ class InMemoryVectorStoreTest {
         assertThrows(NullPointerException.class, () -> new InMemoryVectorStore(null));
     }
 
+    @Test
+    void snapshotExponeLosFragmentosYLasDimensiones() {
+        store.add(List.of(chunk("a", 1, 0), chunk("b", 0, 1)));
+
+        List<EmbeddedChunk> snapshot = store.snapshot();
+
+        assertEquals(2, snapshot.size());
+        assertEquals(2, store.dimensions());
+    }
+
+    @Test
+    void snapshotVacioYDimensionesDesconocidas() {
+        assertTrue(store.snapshot().isEmpty());
+        assertEquals(-1, store.dimensions());
+    }
+
     private static EmbeddedChunk chunk(String id, float... vector) {
         Chunk chunk = new Chunk(id, Path.of("docs", "doc.txt"), 0, "texto " + id, SourceLocation.none());
         return new EmbeddedChunk(chunk, vector);

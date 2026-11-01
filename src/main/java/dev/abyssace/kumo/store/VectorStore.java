@@ -8,7 +8,7 @@ import java.util.List;
  * Patrón: Repository / Strategy.
  *
  * <p>Almacén de vectores intercambiable. F1 ofrece la implementación en
- * memoria; F2 añadirá la persistencia en JSON sin tocar a los consumidores.
+ * memoria y F2 la persistencia en JSON, ambas tras el mismo contrato.
  * {@code size()} es una extensión sobre el contrato mínimo, necesaria para el
  * comando {@code status}.</p>
  */

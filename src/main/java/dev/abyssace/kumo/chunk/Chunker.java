@@ -7,7 +7,7 @@ import java.util.List;
 /**
  * Patrón: Strategy.
  *
- * <p>Divide un documento en fragmentos. La implementación concreta (F2) decide
+ * <p>Divide un documento en fragmentos. La implementación concreta decide
  * tamaño y solapamiento; el resto del sistema no lo sabe.</p>
  */
 public interface Chunker {
