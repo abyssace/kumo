@@ -11,7 +11,7 @@ en la nube.
 |------|-----------|--------|
 | F1 | Núcleo sin Ollama: dominio, interfaces, store en memoria, `RagService`, pruebas | ✅ |
 | F2 | Loaders TXT/MD/PDF, chunker con solapamiento y persistencia JSON | ✅ |
-| F3 | Cliente de Ollama y comandos `init`, `add`, `ask`, `status` | ⏳ |
+| F3 | Cliente de Ollama y comandos `init`, `add`, `ask`, `status` | ✅ |
 | F4 | Resumen Stuff + MapReduce con progreso | ⏳ |
 | F5 | `brief` (JSON estructurado) y `write` (Markdown) | ⏳ |
 | F6 | Instaladores, README final y release con `.jar` | ⏳ |
@@ -21,10 +21,83 @@ en la nube.
 
 - **JDK 21** con `JAVA_HOME` apuntando a él.
 - **Maven Wrapper** incluido en el repo: no hace falta tener Maven instalado.
-- **Ollama nativo** (a partir de F3), escuchando en `http://localhost:11434`.
+- **Ollama nativo**, escuchando en `http://localhost:11434`.
 
 > En Windows, si `java -version` muestra 17, abre una terminal nueva o revisa
 > `JAVA_HOME`. La sesión actual puede conservar el entorno anterior.
+
+## Puesta en marcha
+
+kumo **no instala Ollama ni descarga modelos**. Son pasos que decides tú:
+
+```bash
+ollama pull qwen3:8b
+ollama pull embeddinggemma
+ollama serve
+```
+
+Después:
+
+```bash
+./mvnw package
+java -jar target/kumo.jar init
+java -jar target/kumo.jar add --corpus ./documentos ./documentos
+java -jar target/kumo.jar ask --corpus ./documentos "¿De qué trata el informe?"
+```
+
+El jar usa `target/lib/` para las dependencias, generado por Maven. Si mueves
+`kumo.jar`, mueve también `lib/` a su lado.
+
+### Comandos
+
+| Comando | Qué hace |
+|---------|----------|
+| `kumo init` | Crea `~/.kumo/config.json` y comprueba Ollama y los modelos. |
+| `kumo add [archivos...]` | Indexa archivos o carpetas en `<corpus>/.kumo/index.json`. |
+| `kumo ask "<pregunta>"` | Recupera contexto y responde en streaming con fuentes. |
+| `kumo status` | Muestra configuración, estado de Ollama e índice. |
+
+Opciones comunes: `-c, --corpus <carpeta>` (por defecto `.`) y `-v, --verbose`
+(añade la similitud de cada fragmento). `ask` acepta además `-k, --top-k`.
+
+`init` comprueba, sin descargar nada, si Ollama responde y si los modelos
+configurados están instalados. Si Ollama no está arrancado, avisa y sale con 0:
+instalarlo o arrancarlo es decisión tuya, no un requisito para terminar la
+configuración.
+
+`add` indexa cada archivo por separado: si uno falla, el resto continúa y el
+resumen indica cuántos se indexaron y cuántos fallaron. Reindexar un archivo
+sustituye sus fragmentos en lugar de duplicarlos.
+
+## Configuración
+
+El archivo global vive en `~/.kumo/config.json`. Puedes mover esa carpeta con
+la variable de entorno `KUMO_HOME` o, para pruebas y lanzadores avanzados, con
+`-Dkumo.home=<ruta>`.
+
+```json
+{
+  "ollamaBaseUrl": "http://localhost:11434",
+  "chatModel": "qwen3:8b",
+  "embeddingModel": "embeddinggemma",
+  "numCtx": 8192,
+  "embeddingContextTokens": 2048,
+  "chunkSizeTokens": 400,
+  "chunkOverlapTokens": 80,
+  "topK": 5,
+  "minScore": -1.0,
+  "vectorStore": "JSON"
+}
+```
+
+- Los modelos **nunca están hardcodeados** en el resto del código: se leen de
+  aquí. Alternativas razonables: `llama3.1:8b` para comparar respuestas y
+  `llama3.2:3b` para desarrollo rápido; `bge-m3` como embedding alternativo.
+- `numCtx` es el contexto del chat. `embeddingContextTokens` es el límite del
+  modelo de embeddings: son cosas distintas y no se deben confundir.
+- `minScore = -1.0` desactiva el umbral (el coseno va de -1 a 1).
+- `vectorStore` admite `JSON` (persistente) y `MEMORY` (solo para pruebas o uso
+  como librería).
 
 ## Compilar y probar
 
@@ -39,8 +112,9 @@ En Linux/macOS:
 ./mvnw test
 ```
 
-Las pruebas no necesitan Ollama: usan `FakeEmbedder`, `EchoLlmClient` y un PDF
-generado en el propio test con PDFBox. La suite actual tiene 89 pruebas.
+Las pruebas **no necesitan Ollama**: usan `FakeEmbedder`, `EchoLlmClient`,
+`FakeOllamaClient` y `FakeOllamaServer`, un servidor HTTP local real sobre
+loopback. La suite actual tiene 214 pruebas.
 
 ## Estructura
 
@@ -51,16 +125,18 @@ src/main/java/dev/abyssace/kumo/
   chunk/     TokenEstimator, FixedSizeChunker (Strategy)
   embed/     Embedder (Strategy)
   store/     VectorStore, SimilarityMetric, InMemoryVectorStore, JsonVectorStore
-  llm/       LlmClient (Port)
+  llm/       LlmClient (Port), cliente HTTP de Ollama, filtros de razonamiento
   prompt/    PromptBuilder + RagPromptBuilder
-  rag/       RagService (Facade)
-  config/    AppConfig (Builder), StoreFactory (Factory)
+  rag/       RagService, ChunkIndexer, IndexingService, StatusService (Facade)
+  config/    AppConfig (Builder), ConfigManager, StoreFactory (Factory)
+  render/    ConsoleRenderer y observador de progreso
+  cli/       Picocli: Main, comandos y mixins
   i18n/      Messages (textos de interfaz)
 ```
 
-`task/`, `render/`, `cli/` y `summarize/` se incorporan en las fases siguientes.
+`task/` y `summarize/` se incorporan en las fases siguientes.
 
-## Índice en disco (F2)
+## Índice en disco
 
 Cada corpus guarda su índice en:
 
@@ -101,6 +177,23 @@ reindexar. Borra la carpeta `.kumo/` del corpus y vuelve a indexar. Es
 deliberado: vectores de modelos distintos no son comparables y mezclarlos daría
 resultados sin sentido.
 
+## Cómo habla con Ollama
+
+kumo escribe el cliente HTTP a mano con `java.net.http.HttpClient`; no usa
+LangChain4j, Spring AI ni ningún framework de IA. Solo llama a:
+
+- `GET /api/tags` para saber qué modelos hay instalados.
+- `POST /api/show` para leer el contexto real del modelo de embeddings.
+- `POST /api/embed` para vectorizar en lotes.
+- `POST /api/chat` para responder (con `stream: true` en `ask`).
+
+El chat envía `think: false` en el nivel superior para desactivar el
+razonamiento de Qwen3. Como red de seguridad, las etiquetas de razonamiento se
+eliminan también del texto, incluso si llegan partidas entre tokens.
+
+La URL base se valida como loopback y sin ruta, query ni fragmento: kumo no
+puede apuntar a un servidor remoto por accidente.
+
 ## Decisiones de diseño (F1)
 
 - **Todo depende de interfaces** (`Embedder`, `VectorStore`, `LlmClient`,
@@ -116,7 +209,7 @@ resultados sin sentido.
   La URL de Ollama se valida como loopback para garantizar que nada salga de la
   máquina.
 - **`size()` en `VectorStore`**: pequeña extensión sobre el contrato mínimo,
-  necesaria para el comando `status` de F3.
+  necesaria para el comando `status`.
 
 ## Decisiones de diseño (F2)
 
@@ -140,23 +233,46 @@ resultados sin sentido.
 - **El dominio no conoce Jackson**: `IndexFile` y sus records anidados hacen de
   DTO y mapper. Si mañana se añade un store binario, el dominio no cambia.
 
-## Limitaciones conocidas (F2)
+## Decisiones de diseño (F3)
+
+- **Puerto y adaptador para Ollama**: `OllamaClient` es un puerto interno y
+  `HttpOllamaClient` el adaptador. Los comandos piden el puerto; las pruebas
+  inyectan un doble sin red.
+- **`CliFactory` como único punto de construcción**: los comandos no crean
+  clientes HTTP ni stores. Eso mantiene la CLI delgada y permite probarla
+  entera con `FakeOllamaServer`.
+- **Streaming en `ask`**: `LlmClient.stream` entrega tokens según llegan.
+  `ReasoningFilter` es una máquina de estados que tolera etiquetas partidas
+  entre tokens.
+- **Validación del contexto de embeddings**: antes de indexar se consulta
+  `/api/show` y se busca una clave terminada en `.context_length`. Si el
+  fragmento no cabe, se aborta con un mensaje que dice qué cambiar.
+- **Reindexado por archivo**: `ChunkIndexer.replace` sustituye solo los
+  fragmentos del archivo indicado. Reindexar una carpeta no borra documentos
+  que no se hayan vuelto a pasar.
+- **Errores separados por alcance**: un archivo ilegible no aborta el lote; una
+  caída de Ollama o un índice corrupto sí, porque afectan a todo.
+- **`status` tolerante**: informa incluso si Ollama está caído, el índice es de
+  otro modelo o la carpeta no existe. Es la herramienta para diagnosticar.
+
+## Limitaciones conocidas
 
 - **Solo UTF-8** en TXT/Markdown. Un archivo en otra codificación puede leerse
-  con caracteres extraños; se detectará y se documentará mejor en F3.
+  con caracteres extraños.
 - **PDF escaneados no soportados**: si no hay texto extraíble, el loader falla
   con un mensaje claro. El OCR queda fuera del alcance del proyecto.
 - **El chunker no entiende de estructura**: Markdown se trata como texto plano
-  y los encabezados no fuerzan cortes. Es suficiente para RAG, pero se puede
-  mejorar más adelante.
+  y los encabezados no fuerzan cortes.
 - **Rutas absolutas en el índice**: el `source` guardado es absoluto. Mover el
   corpus de carpeta obliga a reindexar; es el precio de tener citas
   inequívocas.
-- **Sin indexado incremental todavía**: F2 sabe guardar y recargar, pero el
-  comando que decide qué archivos han cambiado llega en F3.
+- **Sin indexado incremental por fecha**: `add` reindexa los archivos que le
+  pasas, no decide por sí solo qué ha cambiado. Ese extra queda para F7.
 - **El índice guarda el vector completo en JSON**: legible y depurable, pero
   más pesado que un formato binario. La interfaz `VectorStore` deja la puerta
   abierta a añadirlo después.
+- **Una pregunta por invocación**: `ask` no mantiene conversación. El chat
+  interactivo es un extra de F7.
 
 ## Versiones
 

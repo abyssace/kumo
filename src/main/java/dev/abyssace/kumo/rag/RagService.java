@@ -3,14 +3,12 @@ package dev.abyssace.kumo.rag;
 import dev.abyssace.kumo.domain.Answer;
 import dev.abyssace.kumo.domain.Chunk;
 import dev.abyssace.kumo.domain.Citation;
-import dev.abyssace.kumo.domain.EmbeddedChunk;
 import dev.abyssace.kumo.domain.ScoredChunk;
 import dev.abyssace.kumo.embed.Embedder;
 import dev.abyssace.kumo.i18n.Messages;
 import dev.abyssace.kumo.llm.LlmClient;
 import dev.abyssace.kumo.prompt.PromptBuilder;
 import dev.abyssace.kumo.store.VectorStore;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
 import java.util.function.Consumer;
@@ -30,6 +28,7 @@ public final class RagService {
     private final VectorStore store;
     private final LlmClient llm;
     private final PromptBuilder promptBuilder;
+    private final ChunkIndexer chunkIndexer;
     private final int topK;
     private final double minScore;
 
@@ -44,6 +43,7 @@ public final class RagService {
         this.store = Objects.requireNonNull(store, "store");
         this.llm = Objects.requireNonNull(llm, "llm");
         this.promptBuilder = Objects.requireNonNull(promptBuilder, "promptBuilder");
+        this.chunkIndexer = new ChunkIndexer(this.embedder, this.store);
         if (topK < 1) {
             throw new IllegalArgumentException("topK debe ser >= 1, pero fue " + topK);
         }
@@ -58,25 +58,7 @@ public final class RagService {
      * Embebe e indexa los fragmentos indicados. Devuelve cuántos se procesaron.
      */
     public int index(List<Chunk> chunks) {
-        Objects.requireNonNull(chunks, "chunks");
-        if (chunks.isEmpty()) {
-            return 0;
-        }
-
-        List<String> texts = chunks.stream().map(Chunk::text).toList();
-        List<float[]> vectors = embedder.embedAll(texts);
-        Objects.requireNonNull(vectors, "vectors");
-        if (vectors.size() != chunks.size()) {
-            throw new IllegalStateException(
-                    "El embedder devolvió " + vectors.size() + " vectores para " + chunks.size() + " fragmentos");
-        }
-
-        List<EmbeddedChunk> embedded = new ArrayList<>(chunks.size());
-        for (int i = 0; i < chunks.size(); i++) {
-            embedded.add(new EmbeddedChunk(chunks.get(i), vectors.get(i)));
-        }
-        store.add(embedded);
-        return embedded.size();
+        return chunkIndexer.index(chunks);
     }
 
     /**

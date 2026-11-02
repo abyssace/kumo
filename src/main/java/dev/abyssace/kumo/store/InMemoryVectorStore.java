@@ -2,6 +2,7 @@ package dev.abyssace.kumo.store;
 
 import dev.abyssace.kumo.domain.EmbeddedChunk;
 import dev.abyssace.kumo.domain.ScoredChunk;
+import java.nio.file.Path;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -28,26 +29,36 @@ public final class InMemoryVectorStore implements VectorStore {
     @Override
     public void add(List<EmbeddedChunk> newChunks) {
         Objects.requireNonNull(newChunks, "chunks");
-
-        // Validar todo antes de modificar el store para no dejarlo a medias.
-        int expectedDimensions = dimensions;
-        for (EmbeddedChunk chunk : newChunks) {
-            Objects.requireNonNull(chunk, "chunk");
-            int size = chunk.vector().length;
-            if (expectedDimensions == -1) {
-                expectedDimensions = size;
-            } else if (size != expectedDimensions) {
-                throw new IllegalArgumentException(
-                        "Dimensión incompatible en " + chunk.chunk().id()
-                                + ": el índice usa " + expectedDimensions + " y el vector trae " + size
-                                + ". Reindexa con el mismo modelo de embeddings.");
-            }
-        }
+        int expectedDimensions = validateDimensions(newChunks, dimensions);
 
         for (EmbeddedChunk chunk : newChunks) {
             chunks.put(chunk.chunk().id(), chunk);
         }
         dimensions = expectedDimensions;
+    }
+
+    @Override
+    public void replaceBySource(Path source, List<EmbeddedChunk> newChunks) {
+        Objects.requireNonNull(source, "source");
+        Objects.requireNonNull(newChunks, "chunks");
+
+        Path normalized = source.toAbsolutePath().normalize();
+        for (EmbeddedChunk chunk : newChunks) {
+            Objects.requireNonNull(chunk, "chunk");
+            if (!chunk.chunk().source().equals(normalized)) {
+                throw new IllegalArgumentException(
+                        "El fragmento " + chunk.chunk().id() + " no pertenece a " + normalized);
+            }
+        }
+
+        // Validar dimensiones antes de borrar: si algo falla, el store queda intacto.
+        int expectedDimensions = validateDimensions(newChunks, dimensions);
+
+        chunks.values().removeIf(chunk -> chunk.chunk().source().equals(normalized));
+        for (EmbeddedChunk chunk : newChunks) {
+            chunks.put(chunk.chunk().id(), chunk);
+        }
+        dimensions = chunks.isEmpty() ? -1 : expectedDimensions;
     }
 
     @Override
@@ -78,6 +89,27 @@ public final class InMemoryVectorStore implements VectorStore {
     @Override
     public int size() {
         return chunks.size();
+    }
+
+    /**
+     * Valida que todos los vectores tengan la misma dimensión y devuelve la
+     * dimensión resultante. No modifica el store.
+     */
+    private static int validateDimensions(List<EmbeddedChunk> newChunks, int currentDimensions) {
+        int expectedDimensions = currentDimensions;
+        for (EmbeddedChunk chunk : newChunks) {
+            Objects.requireNonNull(chunk, "chunk");
+            int size = chunk.vector().length;
+            if (expectedDimensions == -1) {
+                expectedDimensions = size;
+            } else if (size != expectedDimensions) {
+                throw new IllegalArgumentException(
+                        "Dimensión incompatible en " + chunk.chunk().id()
+                                + ": el índice usa " + expectedDimensions + " y el vector trae " + size
+                                + ". Reindexa con el mismo modelo de embeddings.");
+            }
+        }
+        return expectedDimensions;
     }
 
     /**

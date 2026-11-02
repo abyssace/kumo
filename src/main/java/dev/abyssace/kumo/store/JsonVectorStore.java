@@ -4,6 +4,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
 import dev.abyssace.kumo.domain.EmbeddedChunk;
 import dev.abyssace.kumo.domain.ScoredChunk;
+import dev.abyssace.kumo.i18n.Messages;
 import java.io.IOException;
 import java.nio.file.AtomicMoveNotSupportedException;
 import java.nio.file.Files;
@@ -11,6 +12,7 @@ import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
 import java.util.List;
 import java.util.Objects;
+import java.util.Optional;
 
 /**
  * Patrón: Decorator / Repository persistente sobre {@link InMemoryVectorStore}.
@@ -74,6 +76,14 @@ public final class JsonVectorStore implements VectorStore {
     }
 
     @Override
+    public void replaceBySource(Path source, List<EmbeddedChunk> chunks) {
+        Objects.requireNonNull(source, "source");
+        Objects.requireNonNull(chunks, "chunks");
+        delegate.replaceBySource(source, chunks);
+        persist();
+    }
+
+    @Override
     public List<ScoredChunk> search(float[] query, int topK) {
         return delegate.search(query, topK);
     }
@@ -106,6 +116,45 @@ public final class JsonVectorStore implements VectorStore {
     /** Métrica de similitud en uso. */
     public SimilarityMetric metric() {
         return metric;
+    }
+
+    /** Dimensión de los vectores guardados, o -1 si el store está vacío. */
+    public int dimensions() {
+        return delegate.dimensions();
+    }
+
+    /**
+     * Lee los metadatos de un índice sin validar el modelo configurado ni
+     * cargarlo en memoria. Devuelve {@link Optional#empty()} si el archivo no
+     * existe.
+     */
+    public static Optional<IndexMetadata> inspect(Path indexFile) {
+        Objects.requireNonNull(indexFile, "indexFile");
+        Path normalized = indexFile.toAbsolutePath().normalize();
+        if (!Files.isRegularFile(normalized)) {
+            return Optional.empty();
+        }
+
+        IndexFile file;
+        try {
+            file = new ObjectMapper().readValue(normalized.toFile(), IndexFile.class);
+        } catch (IOException | RuntimeException ex) {
+            if (ex instanceof IndexFormatException formatException) {
+                throw formatException;
+            }
+            throw new IndexFormatException(
+                    Messages.INDEX_READ_ERROR.formatted(normalized, ex.getMessage()), ex);
+        }
+        if (file == null) {
+            throw new IndexFormatException(Messages.INDEX_READ_ERROR.formatted(normalized, "archivo vacío"));
+        }
+        if (file.formatVersion() != IndexFile.CURRENT_FORMAT_VERSION) {
+            throw new IndexFormatException(
+                    "El índice " + normalized + " usa el formato " + file.formatVersion()
+                            + " y esta versión de kumo entiende el " + IndexFile.CURRENT_FORMAT_VERSION
+                            + ". Borra la carpeta " + normalized.getParent() + " y reindexa el corpus.");
+        }
+        return Optional.of(new IndexMetadata(file.embeddingModel(), file.dimensions(), file.chunks().size()));
     }
 
     private void loadIfPresent() {

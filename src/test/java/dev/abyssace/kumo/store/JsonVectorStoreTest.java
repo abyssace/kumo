@@ -182,6 +182,111 @@ class JsonVectorStoreTest {
     }
 
     @Test
+    void inspectDevuelveVacioSiElArchivoNoExiste() {
+        assertTrue(JsonVectorStore.inspect(index()).isEmpty());
+    }
+
+    @Test
+    void inspectLeeLosMetadatosSinAbrirElStore() {
+        open(MODEL).add(List.of(
+                chunk("a.txt", 0, "gato", SourceLocation.none(), 1, 0),
+                chunk("b.txt", 0, "perro", SourceLocation.none(), 0, 1)));
+
+        IndexMetadata metadata = JsonVectorStore.inspect(index()).orElseThrow();
+
+        assertEquals(MODEL, metadata.embeddingModel());
+        assertEquals(2, metadata.dimensions());
+        assertEquals(2, metadata.chunks());
+    }
+
+    @Test
+    void inspectNoValidaElModeloConfigurado() {
+        open("bge-m3").add(List.of(chunk("a.txt", 0, "gato", SourceLocation.none(), 1, 0)));
+
+        IndexMetadata metadata = JsonVectorStore.inspect(index()).orElseThrow();
+
+        assertEquals("bge-m3", metadata.embeddingModel());
+    }
+
+    @Test
+    void inspectFallaConUnJsonCorrupto() throws IOException {
+        Files.createDirectories(index().getParent());
+        Files.writeString(index(), "{ roto", StandardCharsets.UTF_8);
+
+        IndexFormatException error = assertThrows(
+                IndexFormatException.class, () -> JsonVectorStore.inspect(index()));
+
+        assertTrue(error.getMessage().contains("No se pudo leer"));
+    }
+
+    @Test
+    void inspectFallaConUnaVersionDesconocida() throws IOException {
+        writeRaw("""
+                {"formatVersion": 42, "embeddingModel": "embeddinggemma", "dimensions": 2, "chunks": []}
+                """);
+
+        IndexFormatException error = assertThrows(
+                IndexFormatException.class, () -> JsonVectorStore.inspect(index()));
+
+        assertTrue(error.getMessage().contains("42"));
+    }
+
+    @Test
+    void replaceBySourceSustituyeSoloLosFragmentosDelArchivo() {
+        JsonVectorStore store = open(MODEL);
+        store.add(List.of(
+                chunk("docs/a.txt", 0, "gato", SourceLocation.none(), 1, 0),
+                chunk("docs/b.txt", 0, "perro", SourceLocation.none(), 0, 1)));
+
+        store.replaceBySource(
+                Path.of("docs/a.txt"),
+                List.of(chunk("docs/a.txt", 0, "tigre", SourceLocation.none(), 1, 0)));
+
+        assertEquals(2, store.size());
+        assertEquals("tigre", store.search(new float[] {1, 0}, 1).get(0).embedded().chunk().text());
+        assertEquals(2, open(MODEL).size(), "El reemplazo debe persistirse");
+    }
+
+    @Test
+    void replaceBySourceSinFragmentosBorraElArchivoDelIndice() {
+        JsonVectorStore store = open(MODEL);
+        store.add(List.of(
+                chunk("docs/a.txt", 0, "gato", SourceLocation.none(), 1, 0),
+                chunk("docs/b.txt", 0, "perro", SourceLocation.none(), 0, 1)));
+
+        store.replaceBySource(Path.of("docs/a.txt"), List.of());
+
+        assertEquals(1, store.size());
+        assertEquals(1, open(MODEL).size());
+        assertEquals("perro", store.search(new float[] {0, 1}, 1).get(0).embedded().chunk().text());
+    }
+
+    @Test
+    void replaceBySourceRechazaFragmentosDeOtroArchivo() {
+        JsonVectorStore store = open(MODEL);
+        store.add(List.of(chunk("docs/a.txt", 0, "gato", SourceLocation.none(), 1, 0)));
+
+        assertThrows(
+                IllegalArgumentException.class,
+                () -> store.replaceBySource(
+                        Path.of("docs/a.txt"),
+                        List.of(chunk("docs/b.txt", 0, "perro", SourceLocation.none(), 1, 0))));
+        assertEquals(1, store.size());
+    }
+
+    @Test
+    void dimensionsReflejaElTamanoDeLosVectores() {
+        JsonVectorStore store = open(MODEL);
+
+        assertEquals(-1, store.dimensions());
+
+        store.add(List.of(chunk("a.txt", 0, "gato", SourceLocation.none(), 1, 0, 0)));
+
+        assertEquals(3, store.dimensions());
+        assertEquals(3, open(MODEL).dimensions());
+    }
+
+    @Test
     void indexPathApuntaADotKumo() {
         assertEquals(
                 tempDir.toAbsolutePath().normalize().resolve(".kumo").resolve("index.json"),
