@@ -1,5 +1,6 @@
 package dev.abyssace.kumo.config;
 
+import dev.abyssace.kumo.i18n.Messages;
 import java.net.URI;
 import java.util.Locale;
 import java.util.Objects;
@@ -23,7 +24,8 @@ public record AppConfig(
         int topK,
         double minScore,
         boolean verbose,
-        StoreType vectorStore) {
+        StoreType vectorStore,
+        double summaryInputRatio) {
 
     public static final String DEFAULT_OLLAMA_BASE_URL = "http://localhost:11434";
     public static final String DEFAULT_CHAT_MODEL = "qwen3:8b";
@@ -37,8 +39,12 @@ public record AppConfig(
     public static final int DEFAULT_TOP_K = 5;
     /** -1 desactiva el umbral: el coseno vive en [-1, 1]. */
     public static final double DEFAULT_MIN_SCORE = -1.0;
+    public static final double DEFAULT_SUMMARY_INPUT_RATIO = 0.65;
 
     public AppConfig {
+        if (!Double.isFinite(summaryInputRatio) || summaryInputRatio <= 0 || summaryInputRatio >= 1) {
+            throw new IllegalArgumentException(Messages.SUMMARY_RATIO_INVALID);
+        }
         ollamaBaseUrl = requireText(ollamaBaseUrl, "ollamaBaseUrl");
         while (ollamaBaseUrl.endsWith("/")) {
             ollamaBaseUrl = ollamaBaseUrl.substring(0, ollamaBaseUrl.length() - 1);
@@ -135,6 +141,7 @@ public record AppConfig(
         private double minScore = DEFAULT_MIN_SCORE;
         private boolean verbose;
         private StoreType vectorStore = StoreType.MEMORY;
+        private double summaryInputRatio = DEFAULT_SUMMARY_INPUT_RATIO;
 
         private Builder() {
         }
@@ -194,6 +201,11 @@ public record AppConfig(
             return this;
         }
 
+        public Builder summaryInputRatio(double value) {
+            this.summaryInputRatio = value;
+            return this;
+        }
+
         public AppConfig build() {
             return new AppConfig(
                     ollamaBaseUrl,
@@ -206,7 +218,8 @@ public record AppConfig(
                     topK,
                     minScore,
                     verbose,
-                    vectorStore);
+                    vectorStore,
+                    summaryInputRatio);
         }
     }
 }

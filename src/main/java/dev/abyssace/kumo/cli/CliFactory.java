@@ -15,6 +15,7 @@ import dev.abyssace.kumo.rag.ChunkIndexer;
 import dev.abyssace.kumo.rag.IndexingService;
 import dev.abyssace.kumo.rag.RagService;
 import dev.abyssace.kumo.store.VectorStore;
+import dev.abyssace.kumo.summarize.SummaryService;
 import java.nio.file.Path;
 import java.util.Objects;
 
@@ -33,6 +34,11 @@ public final class CliFactory {
     public static HttpOllamaClient ollama(AppConfig config) {
         Objects.requireNonNull(config, "config");
         return new HttpOllamaClient(config.ollamaBaseUrl());
+    }
+
+    public static SummaryService summary(AppConfig config, OllamaClient client) {
+        return new SummaryService(llm(config, client),
+                new HeuristicTokenEstimator(), config);
     }
 
     public static Embedder embedder(AppConfig config, OllamaClient client) {

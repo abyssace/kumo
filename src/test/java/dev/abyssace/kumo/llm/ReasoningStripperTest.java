@@ -8,6 +8,13 @@ import org.junit.jupiter.api.Test;
 
 class ReasoningStripperTest {
 
+    @Test
+    void eliminaLasEtiquetasRealesDeQwenYLosBloquesAbiertos() {
+        assertEquals("respuesta", ReasoningStripper.strip(
+                "\u003cthink\u003erazonamiento\u003c/think\u003erespuesta"));
+        assertEquals("antes", ReasoningStripper.strip("antes\u003cthink\u003esecreto"));
+    }
+
     private static final String OPEN = "\u003cthinking\u003e";
     private static final String CLOSE = "\u003c/thinking\u003e";
 

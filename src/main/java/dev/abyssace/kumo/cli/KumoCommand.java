@@ -21,7 +21,8 @@ import picocli.CommandLine.Spec;
             InitCommand.class,
             AddCommand.class,
             AskCommand.class,
-            StatusCommand.class
+            StatusCommand.class,
+            SummarizeCommand.class
         })
 public final class KumoCommand implements Runnable {
 

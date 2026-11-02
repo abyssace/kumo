@@ -7,6 +7,16 @@ import org.junit.jupiter.api.Test;
 
 class ReasoningFilterTest {
 
+    @Test
+    void filtraLasEtiquetasRealesDeQwenCaracterACaracter() {
+        var filter = new ReasoningFilter();
+        String raw = "antes\u003cthink\u003esecreto\u003c/think\u003edespués";
+        StringBuilder result = new StringBuilder();
+        raw.chars().forEach(c -> result.append(filter.feed(String.valueOf((char) c))));
+        result.append(filter.finish());
+        assertEquals("antesdespués", result.toString());
+    }
+
     private static final String OPEN = "\u003cthinking\u003e";
     private static final String CLOSE = "\u003c/thinking\u003e";
 

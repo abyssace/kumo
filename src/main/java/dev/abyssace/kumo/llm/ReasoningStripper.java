@@ -17,8 +17,8 @@ public final class ReasoningStripper {
     // \u003c y \u003e son '<' y '>'; así el patrón conserva siempre la
     // etiqueta completa independientemente de cómo se guarde el archivo.
     private static final Pattern COMPLETE_BLOCKS =
-            Pattern.compile("(?is)\u003cthinking\u003e.*?\u003c/thinking\u003e");
-    private static final List<String> OPEN_TAGS = List.of("\u003cthinking\u003e");
+            Pattern.compile("(?is)\u003cthink\u003e.*?\u003c/think\u003e|\u003cthinking\u003e.*?\u003c/thinking\u003e");
+    private static final List<String> OPEN_TAGS = List.of("\u003cthink\u003e", "\u003cthinking\u003e");
 
     private ReasoningStripper() {
     }

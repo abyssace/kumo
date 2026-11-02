@@ -25,6 +25,12 @@ public final class DocumentLoaderFactory {
                 new PdfDocumentLoader()));
     }
 
+    /** Factory específica: el resumen admite código sin ampliar el indexado de F3. */
+    public static DocumentLoaderFactory forSummaries() {
+        return new DocumentLoaderFactory(List.of(new TextDocumentLoader(),
+                new MarkdownDocumentLoader(), new PdfDocumentLoader(), new SourceCodeDocumentLoader()));
+    }
+
     public DocumentLoaderFactory(List<DocumentLoader> loaders) {
         Objects.requireNonNull(loaders, "loaders");
         if (loaders.isEmpty()) {

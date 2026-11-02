@@ -13,6 +13,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.function.Function;
 
 /**
  * Patrón: Test Double (Fake) de la API HTTP de Ollama.
@@ -36,6 +37,7 @@ public final class FakeOllamaServer implements AutoCloseable {
     private volatile int embeddingDimensions = 3;
     private volatile List<float[]> embeddingOverride;
     private volatile String chatResponse = "respuesta del modelo";
+    private volatile Function<JsonNode, String> chatResponder;
     private volatile List<String> streamChunks = List.of("respuesta ", "del modelo");
 
     private volatile int tagsStatus = 200;
@@ -104,6 +106,12 @@ public final class FakeOllamaServer implements AutoCloseable {
 
     public FakeOllamaServer chatResponse(String value) {
         this.chatResponse = value;
+        return this;
+    }
+
+    /** Respuestas dinámicas para probar reducción jerárquica sin un LLM real. */
+    public FakeOllamaServer chatResponder(Function<JsonNode, String> responder) {
+        this.chatResponder = responder;
         return this;
     }
 
@@ -265,7 +273,7 @@ public final class FakeOllamaServer implements AutoCloseable {
         var response = mapper.createObjectNode();
         response.set("message", mapper.createObjectNode()
                 .put("role", "assistant")
-                .put("content", chatResponse));
+                .put("content", chatResponder == null ? chatResponse : chatResponder.apply(request)));
         response.put("done", true);
         send(exchange, 200, mapper.writeValueAsString(response));
     }

@@ -12,7 +12,7 @@ en la nube.
 | F1 | Núcleo sin Ollama: dominio, interfaces, store en memoria, `RagService`, pruebas | ✅ |
 | F2 | Loaders TXT/MD/PDF, chunker con solapamiento y persistencia JSON | ✅ |
 | F3 | Cliente de Ollama y comandos `init`, `add`, `ask`, `status` | ✅ |
-| F4 | Resumen Stuff + MapReduce con progreso | ⏳ |
+| F4 | Resumen Stuff + MapReduce con progreso | ✅ |
 | F5 | `brief` (JSON estructurado) y `write` (Markdown) | ⏳ |
 | F6 | Instaladores, README final y release con `.jar` | ⏳ |
 | F7 | Extras opcionales (chat, indexado incremental, web local) | ⏳ |
@@ -56,9 +56,11 @@ El jar usa `target/lib/` para las dependencias, generado por Maven. Si mueves
 | `kumo add [archivos...]` | Indexa archivos o carpetas en `<corpus>/.kumo/index.json`. |
 | `kumo ask "<pregunta>"` | Recupera contexto y responde en streaming con fuentes. |
 | `kumo status` | Muestra configuración, estado de Ollama e índice. |
+| `kumo summarize <archivo>` | Resume un archivo directamente, sin índice ni embeddings. |
 
-Opciones comunes: `-c, --corpus <carpeta>` (por defecto `.`) y `-v, --verbose`
-(añade la similitud de cada fragmento). `ask` acepta además `-k, --top-k`.
+`add`, `ask` y `status` aceptan `-c, --corpus <carpeta>` (por defecto `.`).
+`add` y `ask` aceptan `-v, --verbose`; en `ask` añade la similitud de cada
+fragmento. `ask` acepta además `-k, --top-k`.
 
 `init` comprueba, sin descargar nada, si Ollama responde y si los modelos
 configurados están instalados. Si Ollama no está arrancado, avisa y sale con 0:
@@ -86,7 +88,8 @@ la variable de entorno `KUMO_HOME` o, para pruebas y lanzadores avanzados, con
   "chunkOverlapTokens": 80,
   "topK": 5,
   "minScore": -1.0,
-  "vectorStore": "JSON"
+  "vectorStore": "JSON",
+  "summaryInputRatio": 0.65
 }
 ```
 
@@ -98,6 +101,75 @@ la variable de entorno `KUMO_HOME` o, para pruebas y lanzadores avanzados, con
 - `minScore = -1.0` desactiva el umbral (el coseno va de -1 a 1).
 - `vectorStore` admite `JSON` (persistente) y `MEMORY` (solo para pruebas o uso
   como librería).
+- `summaryInputRatio` limita la fracción de `numCtx` usada para contenido del
+  resumen (valor entre 0 y 1, extremos excluidos). Los archivos de configuración
+  anteriores siguen siendo válidos: si falta, se usa `0.65`.
+
+## Resumir documentos y código (F4)
+
+```powershell
+java -jar target/kumo.jar summarize "apuntes.pdf"
+java -jar target/kumo.jar summarize "articulo.pdf" --language español --output "resumen.md"
+java -jar target/kumo.jar summarize "Main.java" --language English
+java -jar target/kumo.jar summarize "libro.txt" --strategy map-reduce
+```
+
+- **Un archivo por invocación**: TXT, MD/Markdown, PDF con texto y código UTF-8
+  (`.java`, `.py`, `.js`, `.ts`, `.c`, `.cpp`, `.h`, `.cs`, `.go`, `.rs`, `.html`,
+  `.css`, `.sql`). Las extensiones no distinguen mayúsculas. Las carpetas y los
+  resúmenes conjuntos quedan fuera de F4.
+- **Sin preparación de índice**: loader → chunker si hace falta → LLM. Solo
+  necesita el modelo de chat configurado; no consulta ni necesita embeddings.
+  El soporte de código de esta fase es para `summarize`; `add` conserva sus
+  formatos de F3 (TXT/MD/PDF).
+- **Resultado adaptativo**: se pide idea principal, puntos clave y conclusiones,
+  breve salvo que haga falta ampliar para preservar lo esencial. En artículos
+  científicos, objetivo, método, resultados y limitaciones solo si constan en
+  el documento. Son instrucciones al modelo, no una garantía de exactitud.
+- **Código como texto**: no se ejecuta, compila ni analiza un proyecto completo.
+  Se pide explicar propósito, componentes, flujo y dependencias visibles, sin
+  traducir identificadores ni afirmar que el programa funciona. Se advierte de
+  este alcance en la consola y en el prompt.
+- **Idioma**: por defecto se pide conservar el idioma predominante del documento.
+  `--language español|es|spanish` e `--language inglés|en|english` fuerzan el idioma
+  del resultado; también aceptan `espanol`, `ingles` y cualquier combinación de
+  mayúsculas. No es una opción de traducción de la interfaz de consola.
+- **Salida**: el Markdown completo se imprime por stdout; estrategia, motivo y
+  progreso van por stderr. `--output` (o `-o`) guarda además el resultado UTF-8
+  en un archivo nuevo. La carpeta debe existir; nunca se sobrescribe un destino
+  existente ni se publica un resumen parcial si falla la generación.
+
+### Estrategias y presupuesto
+
+`--strategy auto|stuff|map-reduce` (por defecto `auto`):
+
+1. **Stuff**: todo el texto en una petición cuando cabe en el presupuesto.
+2. **MapReduce**: división por páginas y presupuesto estimado, resumen de cada
+   fragmento y síntesis final. Si los parciales no caben juntos, se reducen por
+   etapas, siempre secuencialmente y sin eliminar fragmentos del lote.
+3. Forzar Stuff con un documento demasiado grande da un error antes de llamar
+   al modelo, sin truncar. Forzar MapReduce aplica ese flujo incluso si cabe.
+
+El techo del contenido es `floor(numCtx * summaryInputRatio)` (~65 % por defecto).
+Se calcula también el coste de los prompts, se reservan para la respuesta
+`max(256, floor(numCtx / 5))` tokens estimados y otros 64 para la plantilla de
+chat. Si hace falta, el presupuesto se reduce aún más. **Cada petición** se
+valida con su prompt completo y envía `options.num_ctx`, incluyendo todas las
+etapas de reducción; `think:false` se conserva.
+
+El chunker de resumen no usa solapamiento ni el límite del embedder: conserva
+sangría y saltos de línea, prefiere cortes próximos en espacios y puede dividir
+una línea/palabra muy larga sin perder su contenido. Las páginas PDF no se
+mezclan en los fragmentos iniciales. El progreso muestra estrategia, motivo,
+tokens estimados, división, parciales, cada etapa de reducción y resumen final.
+
+**Límites conscientes:** `chars/4` es una estimación, no el tokenizador real del
+modelo; con código u otros textos densos conviene bajar el ratio. La reserva
+de respuesta no fuerza una longitud exacta de generación. Si el modelo no
+reduce el contenido, devuelve texto vacío o falla, se aborta con un error, sin
+guardar salida incompleta. Hay un límite de seguridad de 32 etapas de reducción.
+MapReduce puede perder matices al comprimir: revisa siempre las conclusiones
+contra la fuente. El archivo completo y los parciales se mantienen en memoria.
 
 ## Compilar y probar
 
@@ -114,7 +186,10 @@ En Linux/macOS:
 
 Las pruebas **no necesitan Ollama**: usan `FakeEmbedder`, `EchoLlmClient`,
 `FakeOllamaClient` y `FakeOllamaServer`, un servidor HTTP local real sobre
-loopback. La suite actual tiene 214 pruebas.
+loopback. La suite actual tiene 255 pruebas, incluyendo selección de estrategia,
+límites del presupuesto, reducción de múltiples etapas, cobertura de fragmentos,
+idiomas, código sin ejecución y guardado sin sobrescribir. La calidad real de
+los resúmenes requiere una prueba manual con Ollama y tus documentos.
 
 ## Estructura
 
@@ -122,11 +197,12 @@ loopback. La suite actual tiene 214 pruebas.
 src/main/java/dev/abyssace/kumo/
   domain/    records inmutables (Document, Chunk, Answer, Citation, ...)
   loader/    DocumentLoader + loaders TXT/MD/PDF y su Factory
-  chunk/     TokenEstimator, FixedSizeChunker (Strategy)
+  chunk/     TokenEstimator, FixedSizeChunker y SummaryChunker (Strategy)
   embed/     Embedder (Strategy)
   store/     VectorStore, SimilarityMetric, InMemoryVectorStore, JsonVectorStore
   llm/       LlmClient (Port), cliente HTTP de Ollama, filtros de razonamiento
-  prompt/    PromptBuilder + RagPromptBuilder
+  prompt/    PromptBuilder, RagPromptBuilder y SummaryPromptBuilder
+  summarize/ SummaryService (Facade), Stuff/MapReduce (Strategy), progreso (Observer)
   rag/       RagService, ChunkIndexer, IndexingService, StatusService (Facade)
   config/    AppConfig (Builder), ConfigManager, StoreFactory (Factory)
   render/    ConsoleRenderer y observador de progreso
@@ -134,7 +210,7 @@ src/main/java/dev/abyssace/kumo/
   i18n/      Messages (textos de interfaz)
 ```
 
-`task/` y `summarize/` se incorporan en las fases siguientes.
+`task/` se incorpora en las fases siguientes.
 
 ## Índice en disco
 

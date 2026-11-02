@@ -142,6 +142,37 @@ public final class Messages {
     public static final String CORPUS_NOT_FOUND = "No existe la carpeta del corpus: %s";
     public static final String TOP_K_INVALID = "topK debe ser >= 1, pero fue %d";
 
+    // --- Resúmenes -----------------------------------------------------------
+    public static final String CLI_CMD_SUMMARIZE = "Resume un archivo directamente, sin índice.";
+    public static final String SUMMARY_FILE = "Archivo TXT, Markdown, PDF o código UTF-8 (no se ejecuta).";
+    public static final String SUMMARY_STRATEGY_OPTION = "Estrategia: auto, stuff o map-reduce (por defecto: auto).";
+    public static final String SUMMARY_LANGUAGE_OPTION = "Idioma de salida: español/es/spanish o inglés/en/english; por defecto, el del documento.";
+    public static final String SUMMARY_OUTPUT_OPTION = "Guarda el Markdown sin sobrescribir archivos existentes.";
+    public static final String SUMMARY_BAD_LANGUAGE = "Idioma no admitido: %s. Usa español/es/spanish o inglés/en/english.";
+    public static final String SUMMARY_BAD_STRATEGY = "Estrategia no admitida: %s. Usa auto, stuff o map-reduce.";
+    public static final String SUMMARY_SMALL_CONTEXT = "El contexto no deja espacio suficiente para el prompt y la respuesta; aumenta numCtx o reduce summaryInputRatio.";
+    public static final String SUMMARY_TOO_LARGE = "El texto supera el presupuesto estimado (%d tokens). Usa auto o map-reduce; no se ha truncado.";
+    public static final String SUMMARY_NO_CONTRACTION = "La reducción no disminuyó el contenido; se detiene sin descartar fragmentos. Prueba otro modelo o aumenta numCtx.";
+    public static final String SUMMARY_EMPTY = "El modelo devolvió un resumen vacío; no se ha guardado ningún resultado.";
+    public static final String SUMMARY_READ = "Lectura: %s";
+    public static final String SUMMARY_CHOICE = "Estrategia: %s — %s (entrada: ~%d tokens; presupuesto: %d).";
+    public static final String SUMMARY_FITS = "el documento cabe con margen";
+    public static final String SUMMARY_EXCEEDS = "el documento excede el presupuesto";
+    public static final String SUMMARY_FORCED = "selección explícita del usuario";
+    public static final String SUMMARY_STAGE = "%s: [%d/%d]";
+    public static final String SUMMARY_SPLIT = "División";
+    public static final String SUMMARY_MAP = "Resúmenes parciales";
+    public static final String SUMMARY_REDUCE = "Reducción (etapa %d)";
+    public static final String SUMMARY_FINAL = "Resumen final";
+    public static final String SUMMARY_DONE = "Resultado listo.";
+    public static final String SUMMARY_CODE_WARNING = "Código: solo se analiza este archivo como texto, sin ejecutarlo ni conocer el proyecto completo.";
+    public static final String SUMMARY_OUTPUT_EXISTS = "La salida ya existe; elige otro archivo: %s";
+    public static final String SUMMARY_OUTPUT_ERROR = "No se pudo guardar el resumen en %s: %s";
+    public static final String SUMMARY_OUTPUT_PARENT = "La carpeta de destino no existe.";
+    public static final String SUMMARY_RATIO_INVALID = "summaryInputRatio debe ser mayor que 0 y menor que 1.";
+    public static final String SUMMARY_BUDGET_INVALID = "El presupuesto debe ser positivo.";
+    public static final String SUMMARY_SPLIT_ERROR = "El presupuesto no permite dividir el texto.";
+
     private Messages() {
         // Clase de constantes.
     }

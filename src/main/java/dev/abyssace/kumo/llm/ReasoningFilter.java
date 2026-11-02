@@ -22,6 +22,7 @@ public final class ReasoningFilter {
     // reciba siempre la etiqueta completa, sin depender de cómo se guarde el
     // archivo fuente.
     private static final List<TagPair> TAGS = List.of(
+            new TagPair("\u003cthink\u003e", "\u003c/think\u003e"),
             new TagPair("\u003cthinking\u003e", "\u003c/thinking\u003e"));
 
     private final StringBuilder pending = new StringBuilder();

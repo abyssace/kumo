@@ -27,7 +27,8 @@ public record ConfigFile(
         Integer topK,
         Double minScore,
         Boolean verbose,
-        StoreType vectorStore) {
+        StoreType vectorStore,
+        Double summaryInputRatio) {
 
     /** Configuración completa que se escribe la primera vez. */
     public static ConfigFile defaults() {
@@ -42,7 +43,8 @@ public record ConfigFile(
                 AppConfig.DEFAULT_TOP_K,
                 AppConfig.DEFAULT_MIN_SCORE,
                 false,
-                StoreType.JSON);
+                StoreType.JSON,
+                AppConfig.DEFAULT_SUMMARY_INPUT_RATIO);
     }
 
     /** Vuelca una configuración validada al formato del archivo. */
@@ -59,7 +61,8 @@ public record ConfigFile(
                 config.topK(),
                 config.minScore(),
                 config.verbose(),
-                config.vectorStore());
+                config.vectorStore(),
+                config.summaryInputRatio());
     }
 
     /**
@@ -68,6 +71,9 @@ public record ConfigFile(
      */
     public AppConfig toAppConfig() {
         AppConfig.Builder builder = AppConfig.builder();
+        if (summaryInputRatio != null) {
+            builder.summaryInputRatio(summaryInputRatio);
+        }
         if (ollamaBaseUrl != null) {
             builder.ollamaBaseUrl(ollamaBaseUrl);
         }

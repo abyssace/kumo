@@ -7,6 +7,7 @@ import dev.abyssace.kumo.llm.OllamaException;
 import dev.abyssace.kumo.loader.DocumentLoadException;
 import dev.abyssace.kumo.store.IndexFormatException;
 import dev.abyssace.kumo.store.IndexPersistenceException;
+import dev.abyssace.kumo.summarize.SummaryException;
 import picocli.CommandLine;
 
 /**
@@ -37,7 +38,8 @@ public final class CliExceptionHandler implements CommandLine.IExecutionExceptio
     }
 
     private static boolean isDomainException(Exception ex) {
-        return ex instanceof ConfigException
+        return ex instanceof SummaryException
+                || ex instanceof ConfigException
                 || ex instanceof OllamaException
                 || ex instanceof IndexFormatException
                 || ex instanceof IndexPersistenceException
