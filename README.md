@@ -5,6 +5,153 @@ archivos, responde preguntas con RAG y cita las fuentes. Todo ocurre en tu
 máquina: kumo solo habla con Ollama en `localhost`, sin telemetría ni servicios
 en la nube.
 
+**Versión 0.1.0 · Java 21 · Windows y Linux · licencia MIT.**
+
+## Instalar desde el repositorio
+
+Necesitas **Git y un JDK 21** instalado por ti. No hace falta Maven: se incluye
+Maven Wrapper. El instalador compila y ejecuta las pruebas antes de activar la
+aplicación. La primera compilación descarga Maven y dependencias desde sus
+repositorios; **no instala Java, Ollama ni descarga modelos**.
+
+### Windows (PowerShell)
+
+```powershell
+git clone https://github.com/abyssace/kumo.git
+cd kumo
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\install.ps1 -AddToPath
+```
+
+Abre una terminal nueva y comprueba:
+
+```powershell
+kumo --version
+kumo --help
+kumo init
+```
+
+Se instala por usuario en `%LOCALAPPDATA%\Programs\kumo`, sin administrador.
+`-AddToPath` autoriza añadir únicamente su carpeta `bin` al PATH de usuario;
+si lo omites, no cambia el PATH. `ExecutionPolicy Bypass` se aplica solo a ese
+proceso, no cambia permanentemente la política del equipo ni una política de
+dominio. Si una organización bloquea scripts, consulta con su administrador.
+
+### Linux
+
+```bash
+git clone https://github.com/abyssace/kumo.git
+cd kumo
+sh install.sh --add-to-path
+```
+
+Se instala por usuario en `~/.local/share/kumo`, sin `sudo`. `--add-to-path`
+autoriza añadir una línea escapada a `~/.profile`, sin duplicarla. Para usarlo
+en la terminal actual, sin esperar a una nueva sesión:
+
+```bash
+export PATH="$HOME/.local/share/kumo/bin:$PATH"
+kumo --version
+kumo --help
+kumo init
+```
+
+La línea en `.profile` se aplica en sesiones que lean ese archivo; si usas
+otro shell o un perfil distinto, añade la carpeta `bin` a su PATH manualmente.
+No se modifica `.bashrc`, `.zshrc` ni la configuración del sistema. Se prueba
+Linux en CI con Java 21; no se afirma compatibilidad probada con macOS.
+
+### Ubicación personalizada y actualización
+
+```powershell
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\install.ps1 -InstallDir "$HOME\Apps\kumo" -AddToPath
+```
+
+```bash
+sh install.sh --prefix "$HOME/apps/kumo" --add-to-path
+```
+
+Las rutas con espacios están soportadas. En Linux, `--prefix` debe ser absoluto
+y no puede contener `:` o saltos de línea. En Windows no se admite `;` en la
+ruta cuando se añade al PATH. El instalador rechaza una carpeta no vacía que no
+contenga su marcador propio, y no instala a través de enlaces en el destino.
+
+Para actualizar, descarga la nueva versión o ejecuta `git pull --ff-only` en tu
+clon y repite el instalador en **la misma ubicación**. Cada instalación crea una
+carpeta dentro de `releases/`; comprueba `kumo --version` y activa una referencia
+`current` solo cuando el paquete arranca. Si falla esa comprobación, la versión
+activa anterior se conserva. No ejecutes dos instaladores a la vez.
+
+**Nunca se borran ni reemplazan** tu `config.json`, `brief-template.json` ni los
+índices de tus corpus. El instalador no ejecuta `init` automáticamente. Las
+versiones anteriores se conservan (consumen espacio); no hay limpieza automática.
+No se usa el registro de Windows salvo para el PATH de usuario si lo autorizas.
+
+Para usar un build ya verificado sin recompilar, puedes añadir `-SkipBuild`
+(Windows) o `--skip-build` (Linux). Solo usa esta opción si ya ejecutaste
+`mvnw verify` y tienes `target/kumo.jar` y `target/lib/` completos.
+
+## ZIP portable y distribución
+
+```powershell
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\scripts\package.ps1
+```
+
+```bash
+sh scripts/package.sh
+```
+
+Se generan:
+
+```text
+target/kumo-0.1.0.zip
+target/kumo-0.1.0.zip.sha256
+```
+
+`mvnw package`/`verify` también generan el ZIP; los scripts anteriores añaden su
+checksum SHA-256. El ZIP incluye jar, dependencias, instaladores, lanzadores,
+licencia, historial, README y la plantilla de ejemplo. No contiene tus modelos,
+documentos privados, configuración, índices, claves ni repositorio Git.
+
+Extrae **todo** el ZIP con tu gestor de archivos. Desde la carpeta
+`kumo-0.1.0` extraída puedes instalarlo con los mismos comandos `install.ps1` o
+`sh install.sh`, **sin Maven ni acceso a Internet**, si ya tienes Java 21. O usa
+los lanzadores portables sin instalar:
+
+```powershell
+.\bin\kumo.cmd --version
+```
+
+```bash
+sh bin/kumo --version
+```
+
+Conserva la carpeta `lib/` junto al jar y la estructura de carpetas completa.
+Los lanzadores no cambian el directorio de trabajo, respetan `KUMO_HOME` y
+`JAVA_HOME`, validan Java >= 21 y devuelven los códigos de salida de la CLI.
+
+Verifica el checksum de un ZIP descargado contra el archivo `.sha256` de la
+**misma distribución**:
+
+```powershell
+Get-FileHash .\kumo-0.1.0.zip -Algorithm SHA256
+Get-Content .\kumo-0.1.0.zip.sha256
+```
+
+```bash
+sha256sum -c kumo-0.1.0.zip.sha256
+```
+
+GitHub Actions compila y prueba en Windows y Linux y adjunta sus ZIP/checksums
+como artefactos de la ejecución. Un tag `v0.1.0` identifica la versión, pero no
+crea por sí solo una GitHub Release ni publica adjuntos en Releases. Ver
+`CHANGELOG.md` y [pruebas de instalación](docs/testing.md).
+
+### Desinstalación
+
+Elimina únicamente la carpeta donde instalaste kumo y su entrada de PATH (en
+Linux, la línea de kumo de `.profile`). No borres `~/.kumo` ni las carpetas
+`.kumo` de tus documentos si quieres conservar configuración y corpus.
+
 ## Estado del proyecto
 
 | Fase | Contenido | Estado |
@@ -14,7 +161,7 @@ en la nube.
 | F3 | Cliente de Ollama y comandos `init`, `add`, `ask`, `status` | ✅ |
 | F4 | Resumen Stuff + MapReduce con progreso | ✅ |
 | F5 | `brief` (JSON estructurado) y `write` (Markdown) | ✅ |
-| F6 | Instaladores, README final y release con `.jar` | ⏳ |
+| F6 | Instaladores Windows/Linux, README y distribución ZIP 0.1.0 | ✅ |
 | F7 | Extras opcionales (chat, indexado incremental, web local) | ⏳ |
 
 ## Requisitos
@@ -22,6 +169,10 @@ en la nube.
 - **JDK 21** con `JAVA_HOME` apuntando a él.
 - **Maven Wrapper** incluido en el repo: no hace falta tener Maven instalado.
 - **Ollama nativo**, escuchando en `http://localhost:11434`.
+
+Para ejecutar el ZIP basta un runtime Java >= 21; para compilar y ejecutar las
+pruebas necesitas el JDK. Los scripts detectan un Java antiguo, pero no instalan
+ni actualizan Java por su cuenta.
 
 > En Windows, si `java -version` muestra 17, abre una terminal nueva o revisa
 > `JAVA_HOME`. La sesión actual puede conservar el entorno anterior.
@@ -33,8 +184,12 @@ kumo **no instala Ollama ni descarga modelos**. Son pasos que decides tú:
 ```bash
 ollama pull qwen3:8b
 ollama pull embeddinggemma
-ollama serve
 ```
+
+Abre Ollama. Si todavía no está arrancado como aplicación o servicio, ejecuta
+`ollama serve` en otra terminal. No lances un segundo servidor si ya ocupa el
+puerto 11434. Si ya tienes otro modelo instalado (por ejemplo `qwen3.5:4b`),
+puedes seleccionarlo en `chatModel` sin descargar el predeterminado.
 
 Después:
 
@@ -43,6 +198,17 @@ Después:
 java -jar target/kumo.jar init
 java -jar target/kumo.jar add --corpus ./documentos ./documentos
 java -jar target/kumo.jar ask --corpus ./documentos "¿De qué trata el informe?"
+```
+
+Si ya instalaste kumo, usa `kumo` en lugar de `java -jar target/kumo.jar` en los
+ejemplos de este README. Para probarlo con un corpus propio:
+
+```bash
+kumo add --corpus ./documentos ./documentos
+kumo ask --corpus ./documentos "¿De qué trata el informe?"
+kumo summarize ./documentos/notas.txt --language español
+kumo brief ./documentos/notas.txt --language español
+kumo write --corpus ./documentos "Redacta una introducción breve" --language español
 ```
 
 El jar usa `target/lib/` para las dependencias, generado por Maven. Si mueves
@@ -334,10 +500,13 @@ En Linux/macOS:
 
 Las pruebas **no necesitan Ollama**: usan `FakeEmbedder`, `EchoLlmClient`,
 `FakeOllamaClient` y `FakeOllamaServer`, un servidor HTTP local real sobre
-loopback. La suite actual tiene 300 pruebas, incluyendo selección de estrategia,
+loopback. La suite actual tiene 302 pruebas, incluyendo selección de estrategia,
 límites del presupuesto, reducción de múltiples etapas, cobertura de fragmentos,
 idiomas, código sin ejecución, plantillas editables, JSON estructurado y validado,
-tareas con evidencia, redacción con fuentes y guardado sin sobrescribir.
+tareas con evidencia, redacción con fuentes, guardado sin sobrescribir y argumentos
+de los lanzadores (espacios, acentos, comillas, barras y argumentos vacíos). La
+prueba específica de PowerShell se omite en Linux; allí se prueba el shell nativo.
+Los smoke tests de instalación del ZIP se ejecutan por separado; ver `docs/testing.md`.
 También se probaron manualmente `brief` y `write` con `qwen3.5:4b` y el archivo
 `prueba.txt` del entorno local. No es una evaluación general de calidad: para
 documentos largos, artículos y código debes revisar resultados contra la fuente.
@@ -507,7 +676,8 @@ puede apuntar a un servidor remoto por accidente.
 Verificadas en Maven Central con al menos dos semanas de antigüedad:
 Jackson BOM `2.22.4`, JUnit BOM `6.1.3`, PDFBox `3.0.8`, Picocli `4.7.7`,
 Surefire `3.6.0`, Compiler `3.16.0`, Jar `3.5.1`, Maven `3.10.0` y Wrapper
-`3.3.4`.
+`3.3.4`. Assembly Plugin `3.8.0` (publicado en noviembre de 2025) genera la
+distribución ZIP. No añade dependencias al runtime.
 
 ## Licencia
 

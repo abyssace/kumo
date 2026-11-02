@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<assembly xmlns="http://maven.apache.org/ASSEMBLY/2.2.0"
+          xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+          xsi:schemaLocation="http://maven.apache.org/ASSEMBLY/2.2.0 https://maven.apache.org/xsd/assembly-2.2.0.xsd">
+  <id>distribution</id>
+  <formats><format>zip</format></formats>
+  <includeBaseDirectory>true</includeBaseDirectory>
+  <baseDirectory>kumo-${project.version}</baseDirectory>
+  <files>
+    <file><source>${project.build.directory}/kumo.jar</source><outputDirectory>/</outputDirectory><fileMode>0644</fileMode></file>
+    <file><source>README.md</source><outputDirectory>/</outputDirectory><fileMode>0644</fileMode></file>
+    <file><source>LICENSE</source><outputDirectory>/</outputDirectory><fileMode>0644</fileMode></file>
+    <file><source>VERSION</source><outputDirectory>/</outputDirectory><fileMode>0644</fileMode></file>
+    <file><source>CHANGELOG.md</source><outputDirectory>/</outputDirectory><fileMode>0644</fileMode></file>
+    <file><source>install.ps1</source><outputDirectory>/</outputDirectory><fileMode>0644</fileMode></file>
+    <file><source>install.sh</source><outputDirectory>/</outputDirectory><fileMode>0755</fileMode><lineEnding>unix</lineEnding></file>
+    <file><source>bin/kumo</source><outputDirectory>bin</outputDirectory><fileMode>0755</fileMode><lineEnding>unix</lineEnding></file>
+    <file><source>bin/kumo.cmd</source><outputDirectory>bin</outputDirectory><fileMode>0644</fileMode><lineEnding>dos</lineEnding></file>
+    <file><source>bin/kumo.ps1</source><outputDirectory>bin</outputDirectory><fileMode>0644</fileMode><lineEnding>dos</lineEnding></file>
+    <file><source>examples/brief-template.json</source><outputDirectory>examples</outputDirectory><fileMode>0644</fileMode></file>
+    <file><source>docs/testing.md</source><outputDirectory>docs</outputDirectory><fileMode>0644</fileMode></file>
+  </files>
+  <dependencySets>
+    <dependencySet>
+      <outputDirectory>lib</outputDirectory>
+      <useProjectArtifact>false</useProjectArtifact>
+      <scope>runtime</scope>
+      <unpack>false</unpack>
+      <fileMode>0644</fileMode>
+    </dependencySet>
+  </dependencySets>
+</assembly>

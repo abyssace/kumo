@@ -1,0 +1,30 @@
+#!/bin/sh
+# Lanzador portable. No cambia el directorio de trabajo ni interpreta argumentos como comandos.
+set -eu
+root=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd -P)
+fail() { printf '%s\n' "Error: $*" >&2; exit 1; }
+
+if [ -f "$root/.kumo-install" ]; then
+    [ -f "$root/current" ] || fail "Instalacion incompleta: falta current."
+    slot=$(cat "$root/current")
+    case "$slot" in ''|.*|*[!A-Za-z0-9._-]*) fail "Referencia de version invalida." ;; esac
+    payload="$root/releases/$slot"
+elif [ -f "$root/kumo.jar" ]; then
+    payload=$root
+else
+    payload="$root/target"
+fi
+[ -f "$payload/kumo.jar" ] || fail "Falta kumo.jar. Compila o reinstala kumo."
+[ -d "$payload/lib" ] || fail "Falta lib/. Conserva las dependencias junto al jar."
+
+if [ -n "${JAVA_HOME:-}" ]; then
+    java="$JAVA_HOME/bin/java"
+else
+    java=$(command -v java) || fail "Instala Java 21 o superior y revisa JAVA_HOME."
+fi
+[ -x "$java" ] || fail "No se encuentra Java en JAVA_HOME: $java"
+version=$("$java" --version 2>/dev/null) || fail "Se necesita Java 21 o superior."
+major=$(printf '%s\n' "$version" | sed -n '1s/^[^0-9]*\([0-9][0-9]*\).*/\1/p')
+case "$major" in ''|*[!0-9]*) fail "No se pudo comprobar la version de Java." ;; esac
+[ "$major" -ge 21 ] || fail "Se necesita Java 21 o superior; se encontro $major."
+exec "$java" -jar "$payload/kumo.jar" "$@"

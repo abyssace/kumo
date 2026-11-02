@@ -6,7 +6,7 @@
 
   <groupId>dev.abyssace</groupId>
   <artifactId>kumo</artifactId>
-  <version>0.1.0-SNAPSHOT</version>
+  <version>0.1.0</version>
   <packaging>jar</packaging>
 
   <name>kumo</name>
@@ -34,6 +34,8 @@
     <maven-surefire-plugin.version>3.6.0</maven-surefire-plugin.version>
     <maven-jar-plugin.version>3.5.1</maven-jar-plugin.version>
     <maven-dependency-plugin.version>3.11.0</maven-dependency-plugin.version>
+    <!-- 3.8.0 publicada en Maven Central en noviembre de 2025. -->
+    <maven-assembly-plugin.version>3.8.0</maven-assembly-plugin.version>
   </properties>
 
   <dependencyManagement>
@@ -126,6 +128,25 @@
               <overWriteReleases>false</overWriteReleases>
               <overWriteSnapshots>true</overWriteSnapshots>
             </configuration>
+          </execution>
+        </executions>
+      </plugin>
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-assembly-plugin</artifactId>
+        <version>${maven-assembly-plugin.version}</version>
+        <configuration>
+          <descriptors>
+            <descriptor>src/assembly/distribution.xml</descriptor>
+          </descriptors>
+          <finalName>kumo-${project.version}</finalName>
+          <appendAssemblyId>false</appendAssemblyId>
+        </configuration>
+        <executions>
+          <execution>
+            <id>distribution</id>
+            <phase>package</phase>
+            <goals><goal>single</goal></goals>
           </execution>
         </executions>
       </plugin>
