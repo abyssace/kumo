@@ -28,7 +28,8 @@ public record ConfigFile(
         Double minScore,
         Boolean verbose,
         StoreType vectorStore,
-        Double summaryInputRatio) {
+        Double summaryInputRatio,
+        Integer writeTopK) {
 
     /** Configuración completa que se escribe la primera vez. */
     public static ConfigFile defaults() {
@@ -44,7 +45,8 @@ public record ConfigFile(
                 AppConfig.DEFAULT_MIN_SCORE,
                 false,
                 StoreType.JSON,
-                AppConfig.DEFAULT_SUMMARY_INPUT_RATIO);
+                AppConfig.DEFAULT_SUMMARY_INPUT_RATIO,
+                AppConfig.DEFAULT_WRITE_TOP_K);
     }
 
     /** Vuelca una configuración validada al formato del archivo. */
@@ -62,7 +64,8 @@ public record ConfigFile(
                 config.minScore(),
                 config.verbose(),
                 config.vectorStore(),
-                config.summaryInputRatio());
+                config.summaryInputRatio(),
+                config.writeTopK());
     }
 
     /**
@@ -71,6 +74,9 @@ public record ConfigFile(
      */
     public AppConfig toAppConfig() {
         AppConfig.Builder builder = AppConfig.builder();
+        if (writeTopK != null) {
+            builder.writeTopK(writeTopK);
+        }
         if (summaryInputRatio != null) {
             builder.summaryInputRatio(summaryInputRatio);
         }

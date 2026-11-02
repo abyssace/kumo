@@ -12,7 +12,7 @@ import java.util.function.Consumer;
  * (lo fija {@link HttpOllamaClient}) y limpia los bloques de razonamiento tanto
  * en la respuesta completa como en el stream.</p>
  */
-public final class OllamaLlmClient implements LlmClient {
+public final class OllamaLlmClient implements StructuredLlmClient {
 
     private final OllamaClient client;
     private final String model;
@@ -50,6 +50,13 @@ public final class OllamaLlmClient implements LlmClient {
         if (!tail.isEmpty()) {
             onToken.accept(tail);
         }
+    }
+
+    @Override
+    public String completeStructured(String prompt, String jsonSchema) {
+        Objects.requireNonNull(prompt, "prompt");
+        Objects.requireNonNull(jsonSchema, "jsonSchema");
+        return ReasoningStripper.strip(client.chat(model, List.of(OllamaMessage.user(prompt)), numCtx, jsonSchema));
     }
 
     private static String requireText(String value, String field) {

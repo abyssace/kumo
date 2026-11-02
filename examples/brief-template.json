@@ -1,0 +1,14 @@
+{
+  "fields": [
+    "documentType",
+    "title",
+    "summary",
+    "keyPoints",
+    "requirements",
+    "conclusions",
+    "tasks",
+    "scientific",
+    "technical"
+  ],
+  "instructions": "Sé breve y conserva los datos esenciales. Distingue requisitos de tareas explícitamente asignadas."
+}

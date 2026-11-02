@@ -2,6 +2,7 @@ package dev.abyssace.kumo.cli;
 
 import dev.abyssace.kumo.config.AppConfig;
 import dev.abyssace.kumo.config.ConfigManager;
+import dev.abyssace.kumo.config.BriefTemplateManager;
 import dev.abyssace.kumo.i18n.Messages;
 import dev.abyssace.kumo.llm.EmbeddingContextGuard;
 import dev.abyssace.kumo.llm.HttpOllamaClient;
@@ -41,10 +42,13 @@ public final class InitCommand implements Callable<Integer> {
         ConfigManager manager = new ConfigManager();
         boolean existed = manager.exists();
         AppConfig config = existed ? manager.load() : manager.loadOrCreate();
+        var templates = new BriefTemplateManager(manager.home());
+        templates.load(null);
 
         out.println(existed
                 ? Messages.CLI_INIT_FOUND.formatted(manager.configFile())
                 : Messages.CLI_INIT_CREATED.formatted(manager.configFile()));
+        out.println(Messages.BRIEF_TEMPLATE_PATH.formatted(templates.defaultPath()));
 
         HttpOllamaClient ollama = CliFactory.ollama(config);
         List<OllamaModel> models;

@@ -13,6 +13,17 @@ import org.junit.jupiter.api.Test;
 
 class OllamaLlmClientTest {
 
+    @Test
+    void completeStructuredEnviaEsquemaContextoYFiltraRazonamiento() {
+        var client = new FakeOllamaClient().chatResponse("\u003cthink\u003esecreto\u003c/think\u003e{\"title\":\"kumo\"}");
+        var llm = new OllamaLlmClient(client, "modelo-configurado", 4096);
+        String schema = "{\"type\":\"object\"}";
+        assertEquals("{\"title\":\"kumo\"}", llm.completeStructured("extrae", schema));
+        assertEquals(schema, client.lastFormat());
+        assertEquals(4096, client.lastNumCtx());
+        assertFalse(client.lastStreaming());
+    }
+
     private static final String OPEN = "\u003cthinking\u003e";
     private static final String CLOSE = "\u003c/thinking\u003e";
 

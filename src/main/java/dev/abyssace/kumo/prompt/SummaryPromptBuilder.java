@@ -6,10 +6,16 @@ import dev.abyssace.kumo.summarize.SummaryLanguage;
 public final class SummaryPromptBuilder {
     private final SummaryLanguage language;
     private final boolean sourceCode;
+    private final String focus;
 
     public SummaryPromptBuilder(SummaryLanguage language, boolean sourceCode) {
+        this(language, sourceCode, "");
+    }
+
+    public SummaryPromptBuilder(SummaryLanguage language, boolean sourceCode, String focus) {
         this.language = java.util.Objects.requireNonNull(language, "language");
         this.sourceCode = sourceCode;
+        this.focus = java.util.Objects.requireNonNull(focus, "focus");
     }
 
     public String build(String text, boolean partial) {
@@ -34,8 +40,9 @@ public final class SummaryPromptBuilder {
                 %s
                 %s
                 %s
+                %s
                 CONTENIDO A RESUMIR (hasta el final del mensaje):
                 %s
-                """.formatted(instruction, outputLanguage, type, text);
+                """.formatted(instruction, outputLanguage, type, focus, text);
     }
 }

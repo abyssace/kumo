@@ -22,7 +22,9 @@ import picocli.CommandLine.Spec;
             AddCommand.class,
             AskCommand.class,
             StatusCommand.class,
-            SummarizeCommand.class
+            SummarizeCommand.class,
+            BriefCommand.class,
+            WriteCommand.class
         })
 public final class KumoCommand implements Runnable {
 

@@ -25,7 +25,8 @@ public record AppConfig(
         double minScore,
         boolean verbose,
         StoreType vectorStore,
-        double summaryInputRatio) {
+        double summaryInputRatio,
+        int writeTopK) {
 
     public static final String DEFAULT_OLLAMA_BASE_URL = "http://localhost:11434";
     public static final String DEFAULT_CHAT_MODEL = "qwen3:8b";
@@ -40,8 +41,12 @@ public record AppConfig(
     /** -1 desactiva el umbral: el coseno vive en [-1, 1]. */
     public static final double DEFAULT_MIN_SCORE = -1.0;
     public static final double DEFAULT_SUMMARY_INPUT_RATIO = 0.65;
+    public static final int DEFAULT_WRITE_TOP_K = 12;
 
     public AppConfig {
+        if (writeTopK < 1) {
+            throw new IllegalArgumentException(Messages.WRITE_TOP_K_INVALID);
+        }
         if (!Double.isFinite(summaryInputRatio) || summaryInputRatio <= 0 || summaryInputRatio >= 1) {
             throw new IllegalArgumentException(Messages.SUMMARY_RATIO_INVALID);
         }
@@ -142,6 +147,7 @@ public record AppConfig(
         private boolean verbose;
         private StoreType vectorStore = StoreType.MEMORY;
         private double summaryInputRatio = DEFAULT_SUMMARY_INPUT_RATIO;
+        private int writeTopK = DEFAULT_WRITE_TOP_K;
 
         private Builder() {
         }
@@ -206,6 +212,11 @@ public record AppConfig(
             return this;
         }
 
+        public Builder writeTopK(int value) {
+            this.writeTopK = value;
+            return this;
+        }
+
         public AppConfig build() {
             return new AppConfig(
                     ollamaBaseUrl,
@@ -219,7 +230,8 @@ public record AppConfig(
                     minScore,
                     verbose,
                     vectorStore,
-                    summaryInputRatio);
+                    summaryInputRatio,
+                    writeTopK);
         }
     }
 }

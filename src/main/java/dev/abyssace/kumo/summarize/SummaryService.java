@@ -23,9 +23,15 @@ public final class SummaryService {
 
     public String summarize(Document document, SummaryStrategy requested, SummaryLanguage language,
             boolean sourceCode, SummaryListener listener) {
+        return summarize(document, requested, language, sourceCode, listener, "");
+    }
+
+    /** Variante con foco de extracción, usada por brief sin alterar el resumen normal. */
+    public String summarize(Document document, SummaryStrategy requested, SummaryLanguage language,
+            boolean sourceCode, SummaryListener listener, String focus) {
         Objects.requireNonNull(requested, "requested");
         SummarySession session = new SummarySession(llm, estimator,
-                new SummaryPromptBuilder(language, sourceCode), listener,
+                new SummaryPromptBuilder(language, sourceCode, focus), listener,
                 config.numCtx(), config.summaryInputRatio());
         int tokens = session.tokens(document.text());
         boolean fits = tokens <= session.budget();

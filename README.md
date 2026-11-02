@@ -13,7 +13,7 @@ en la nube.
 | F2 | Loaders TXT/MD/PDF, chunker con solapamiento y persistencia JSON | ✅ |
 | F3 | Cliente de Ollama y comandos `init`, `add`, `ask`, `status` | ✅ |
 | F4 | Resumen Stuff + MapReduce con progreso | ✅ |
-| F5 | `brief` (JSON estructurado) y `write` (Markdown) | ⏳ |
+| F5 | `brief` (JSON estructurado) y `write` (Markdown) | ✅ |
 | F6 | Instaladores, README final y release con `.jar` | ⏳ |
 | F7 | Extras opcionales (chat, indexado incremental, web local) | ⏳ |
 
@@ -57,10 +57,12 @@ El jar usa `target/lib/` para las dependencias, generado por Maven. Si mueves
 | `kumo ask "<pregunta>"` | Recupera contexto y responde en streaming con fuentes. |
 | `kumo status` | Muestra configuración, estado de Ollama e índice. |
 | `kumo summarize <archivo>` | Resume un archivo directamente, sin índice ni embeddings. |
+| `kumo brief <ruta>` | Extrae una ficha JSON por archivo, directamente y sin índice. |
+| `kumo write "<instrucción>"` | Redacta Markdown a partir de fragmentos del índice y adjunta fuentes. |
 
-`add`, `ask` y `status` aceptan `-c, --corpus <carpeta>` (por defecto `.`).
-`add` y `ask` aceptan `-v, --verbose`; en `ask` añade la similitud de cada
-fragmento. `ask` acepta además `-k, --top-k`.
+`add`, `ask`, `status` y `write` aceptan `-c, --corpus <carpeta>` (por defecto `.`).
+`add`, `ask` y `write` aceptan `-v, --verbose`; en `ask` y `write` añade la similitud
+de cada fragmento. `ask` y `write` aceptan además `-k, --top-k`.
 
 `init` comprueba, sin descargar nada, si Ollama responde y si los modelos
 configurados están instalados. Si Ollama no está arrancado, avisa y sale con 0:
@@ -89,7 +91,8 @@ la variable de entorno `KUMO_HOME` o, para pruebas y lanzadores avanzados, con
   "topK": 5,
   "minScore": -1.0,
   "vectorStore": "JSON",
-  "summaryInputRatio": 0.65
+  "summaryInputRatio": 0.65,
+  "writeTopK": 12
 }
 ```
 
@@ -104,6 +107,9 @@ la variable de entorno `KUMO_HOME` o, para pruebas y lanzadores avanzados, con
 - `summaryInputRatio` limita la fracción de `numCtx` usada para contenido del
   resumen (valor entre 0 y 1, extremos excluidos). Los archivos de configuración
   anteriores siguen siendo válidos: si falta, se usa `0.65`.
+- `writeTopK` es el top-k de redacción (12 por defecto, frente a 5 para `ask`).
+  Puede sobrescribirse con `write --top-k`. Las configuraciones anteriores no
+  necesitan editarse: los campos ausentes heredan sus valores predeterminados.
 
 ## Resumir documentos y código (F4)
 
@@ -171,6 +177,148 @@ guardar salida incompleta. Hay un límite de seguridad de 32 etapas de reducció
 MapReduce puede perder matices al comprimir: revisa siempre las conclusiones
 contra la fuente. El archivo completo y los parciales se mantienen en memoria.
 
+## Fichas estructuradas y plantilla editable (F5)
+
+`brief` convierte documentos en fichas JSON: no es otro resumen Markdown.
+Usa los mismos formatos que `summarize`, incluido código como texto sin ejecutarlo.
+No necesita índice ni embeddings. Ejemplos desde la raíz del proyecto:
+
+```powershell
+java -jar target/kumo.jar brief "C:\Users\pedro\Documents\pruebakumo\prueba.txt" --language español
+java -jar target/kumo.jar brief ".\documentos" --output ".\fichas.json"
+java -jar target/kumo.jar brief ".\Main.java" --language English --template ".\examples\brief-template.json"
+```
+
+### Editar la plantilla JSON
+
+`init` y la primera ejecución de `brief` sin `--template` crean, si no existe:
+
+```text
+~/.kumo/brief-template.json
+```
+
+En tu Windows, con la ubicación global predeterminada:
+
+```powershell
+java -jar target/kumo.jar init
+notepad "$HOME\.kumo\brief-template.json"
+```
+
+La plantilla es un archivo distinto de `config.json`: la configuración elige
+modelos y contexto; la plantilla elige **qué extraer**. Respeta también `KUMO_HOME`
+y `-Dkumo.home`. Nunca se reemplaza una plantilla que ya exista. Incluimos una
+copia completa editable en `examples/brief-template.json`.
+
+Ejemplo completo de plantilla más sencilla:
+
+```json
+{
+  "fields": ["title", "summary", "keyPoints", "requirements", "tasks"],
+  "instructions": "Sé breve. Destaca los requisitos de instalación y las tareas explícitas."
+}
+```
+
+Puedes quitar campos de `fields` y cambiar `instructions` (hasta 4000 caracteres).
+`title` y `summary` son obligatorios, no se admiten campos desconocidos ni
+duplicados. El archivo debe contener exactamente `fields` e `instructions`.
+Es una plantilla de selección, **no un JSON Schema arbitrario ni una plantilla
+de respuestas rellenadas a mano**. Para usar otra copia, añade `--template <ruta>`;
+la ruta indicada debe existir y nunca se modifica.
+
+| Campo permitido | Contenido |
+|---|---|
+| `documentType` | `notes`, `scientific`, `code` o `document`; código solo para extensiones de código identificadas por el loader. |
+| `title` | Título descriptivo. |
+| `summary` | Síntesis breve. |
+| `keyPoints` | Puntos clave, como lista. |
+| `requirements` | Requisitos explícitos; no se convierten automáticamente en tareas. |
+| `conclusions` | Conclusiones respaldadas por la fuente. |
+| `tasks` | Lista de objetos con `description`, `assignee`, `dueDate` y `evidence`. |
+| `scientific` | Objeto con `objective`, `method`, `results`, `limitations`; `null` si no corresponde. |
+| `technical` | Objeto con `purpose`, `components`, `flow`, `dependencies`; `null` si no corresponde. |
+
+Se pide usar listas vacías y valores `null` para información ausente, no inventar
+datos. En tareas, responsable y fecha deben copiarse literalmente o ser `null`;
+`evidence` debe citar la fuente. Antes de aceptar la ficha, kumo comprueba que la
+evidencia, los nombres y las fechas aparecen en el **documento original**,
+normalizando espacios. Esto ayuda a detectar invenciones, pero no demuestra
+automáticamente que la interpretación semántica de cada tarea sea correcta.
+
+### Flujo, salida y límites de brief
+
+- Archivo pequeño: loader → petición con `format` JSON Schema → validación local.
+- Archivo extenso: loader → chunker → resúmenes y reducción de F4 con foco en
+  extracción → petición estructurada. La salida lleva `compressed: true` y
+  una advertencia: la compresión puede perder matices o requisitos. Si la
+  síntesis aún no cabe, se aborta sin truncar.
+- Se cuenta también el coste estimado del esquema y del prompt; se reserva
+  respuesta y se envía siempre `options.num_ctx` y `think:false` en el chat.
+- Los esquemas se generan localmente. El validador propio comprueba únicamente
+  el subconjunto que kumo genera (tipos, objetos, propiedades requeridas,
+  enumeraciones, listas, nulos y cadenas no vacías). No descarga esquemas ni
+  implementa un validador general de JSON Schema.
+- JSON roto, claves repetidas, campos extra, tipos incorrectos o evidencia
+  inválida producen error: no se corrige ni se reintenta silenciosamente.
+- Para un archivo se devuelve un objeto con `source`, `compressed`, `warnings`
+  y `brief`. Para una carpeta se devuelve un objeto `results` con una ficha por
+  archivo. No se mezcla el contenido de distintos documentos en una petición.
+- Carpetas: recorrido recursivo ordenado, sin seguir enlaces simbólicos ni
+  entrar en `.kumo`, `.git`, `target`, `build`, `dist`, `node_modules`. Un error
+  aborta el lote completo: no se publica un JSON parcial. Las fichas ya
+  generadas no se guardan si falla otro archivo.
+- JSON final por stdout y progreso por stderr. `--output` guarda además el mismo
+  JSON en un archivo nuevo. No se sobrescriben documentos, plantillas ni salidas.
+- `--language` admite los alias de F4. Los nombres de campos y los códigos de
+  `documentType` permanecen en inglés; los valores descriptivos siguen el idioma
+  elegido. Los metadatos y advertencias de la aplicación permanecen en español.
+
+## Redactar con el índice (F5)
+
+Primero indexa las fuentes con `add`. Después:
+
+```powershell
+java -jar target/kumo.jar write --corpus "C:\Users\pedro\Documents\pruebakumo" "Redacta una descripción breve del proyecto kumo" --language español
+java -jar target/kumo.jar write --corpus ".\documentos" "Redacta una introducción académica" --output ".\introduccion.md"
+java -jar target/kumo.jar write --corpus ".\documentos" "Explain the architecture" --language English --top-k 8 --verbose
+```
+
+`write` acepta una instrucción libre para informes, explicaciones técnicas y
+documentación. Usa `Embedder` → `VectorStore` → `LlmClient` sin streaming, con
+progreso Observer. No ejecuta código ni modifica fuentes o el índice.
+
+**Cobertura parcial:** el top-k mayor recupera más fragmentos, pero no lee todo
+el corpus ni garantiza una síntesis exhaustiva. El aviso se imprime tanto en
+stderr como en el propio Markdown. Se aplica `minScore`; sin fragmentos
+relevantes, no se llama al chat. Si los fragmentos o las instrucciones no caben
+con margen en el contexto, se aborta: aumenta `numCtx` o reduce `--top-k`.
+No se descartan ni comprimen fuentes silenciosamente para hacerlas caber.
+
+El prompt pide citas numéricas `[n]` para las afirmaciones. Se rechazan
+redacciones vacías, sin ninguna cita numérica o con números fuera del contexto.
+Kumo adjunta una lista determinista de **fuentes recuperadas** con archivo,
+página/líneas, extracto y, con `--verbose`, similitud. Esa lista no implica que
+el modelo haya usado cada fuente; la validación de números no demuestra que
+cada afirmación esté realmente respaldada. Revisa siempre el borrador.
+
+El cuerpo sigue el idioma de la instrucción, salvo `--language` explícito.
+`--language English` también cambia el encabezado de fuentes y el aviso del
+Markdown al inglés. La interfaz de consola sigue en español. El resultado
+completo sale por stdout y opcionalmente con `--output`, siempre sin sobrescribir.
+
+### Decisiones de diseño de F5
+
+- `StructuredLlmClient` extiende `LlmClient` sin cambiar su contrato central;
+  `OllamaLlmClient` implementa el envío de `format` y mantiene el filtrado de
+  razonamiento. No se añade ningún framework ni dependencia nueva.
+- `BriefTemplate` es un Value Object; `BriefTemplateManager` persiste la
+  selección editable; `BriefSchema` construye y valida la estructura concreta.
+- `BriefService` y `WriteService` son Facades con dependencias inyectadas por
+  constructor. `ConsoleSummaryListener` reutiliza el Observer de F4 para progreso.
+- `TaskOutputWriter` adapta la escritura segura de F4 a JSON y Markdown; el
+  nombre del archivo o una instrucción del LLM nunca autoriza a sobrescribirlo.
+- La reducción para `brief` añade foco de extracción a los prompts de resumen,
+  sin alterar el comportamiento predeterminado de `summarize`.
+
 ## Compilar y probar
 
 ```powershell
@@ -186,10 +334,13 @@ En Linux/macOS:
 
 Las pruebas **no necesitan Ollama**: usan `FakeEmbedder`, `EchoLlmClient`,
 `FakeOllamaClient` y `FakeOllamaServer`, un servidor HTTP local real sobre
-loopback. La suite actual tiene 255 pruebas, incluyendo selección de estrategia,
+loopback. La suite actual tiene 300 pruebas, incluyendo selección de estrategia,
 límites del presupuesto, reducción de múltiples etapas, cobertura de fragmentos,
-idiomas, código sin ejecución y guardado sin sobrescribir. La calidad real de
-los resúmenes requiere una prueba manual con Ollama y tus documentos.
+idiomas, código sin ejecución, plantillas editables, JSON estructurado y validado,
+tareas con evidencia, redacción con fuentes y guardado sin sobrescribir.
+También se probaron manualmente `brief` y `write` con `qwen3.5:4b` y el archivo
+`prueba.txt` del entorno local. No es una evaluación general de calidad: para
+documentos largos, artículos y código debes revisar resultados contra la fuente.
 
 ## Estructura
 
@@ -203,6 +354,7 @@ src/main/java/dev/abyssace/kumo/
   llm/       LlmClient (Port), cliente HTTP de Ollama, filtros de razonamiento
   prompt/    PromptBuilder, RagPromptBuilder y SummaryPromptBuilder
   summarize/ SummaryService (Facade), Stuff/MapReduce (Strategy), progreso (Observer)
+  task/      BriefService, BriefSchema, WriteService y PromptBudget
   rag/       RagService, ChunkIndexer, IndexingService, StatusService (Facade)
   config/    AppConfig (Builder), ConfigManager, StoreFactory (Factory)
   render/    ConsoleRenderer y observador de progreso
@@ -210,7 +362,7 @@ src/main/java/dev/abyssace/kumo/
   i18n/      Messages (textos de interfaz)
 ```
 
-`task/` se incorpora en las fases siguientes.
+`examples/brief-template.json` contiene una plantilla completa editable.
 
 ## Índice en disco
 

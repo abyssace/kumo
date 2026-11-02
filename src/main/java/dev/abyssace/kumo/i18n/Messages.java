@@ -173,6 +173,44 @@ public final class Messages {
     public static final String SUMMARY_BUDGET_INVALID = "El presupuesto debe ser positivo.";
     public static final String SUMMARY_SPLIT_ERROR = "El presupuesto no permite dividir el texto.";
 
+    // --- Fichas y redacción --------------------------------------------------
+    public static final String CLI_CMD_BRIEF = "Extrae una ficha JSON de un archivo o carpeta, sin índice.";
+    public static final String CLI_CMD_WRITE = "Redacta Markdown con fuentes del índice (cobertura parcial).";
+    public static final String BRIEF_PATH = "Archivo o carpeta para extraer fichas independientes.";
+    public static final String BRIEF_TEMPLATE_OPTION = "Plantilla JSON editable; por defecto, brief-template.json en la carpeta global.";
+    public static final String BRIEF_TEMPLATE_PATH = "Plantilla: %s";
+    public static final String BRIEF_TEMPLATE_INVALID = "Plantilla de brief inválida en %s: %s";
+    public static final String BRIEF_TEMPLATE_FIELDS = "Usa campos conocidos, sin duplicados, e incluye title y summary.";
+    public static final String BRIEF_TEMPLATE_INSTRUCTIONS = "instructions debe ser texto (máximo 4000 caracteres).";
+    public static final String BRIEF_TEMPLATE_PROPERTIES = "La plantilla debe contener solo fields e instructions.";
+    public static final String BRIEF_TEMPLATE_MISSING = "No existe la plantilla indicada: %s";
+    public static final String BRIEF_NO_FILES = "No hay archivos compatibles para brief en %s.";
+    public static final String DOCUMENT_DISCOVERY_ERROR = "No se pudo recorrer la carpeta %s: %s";
+    public static final String BRIEF_FILE = "Ficha [%d/%d]: %s";
+    public static final String BRIEF_COMPRESSION = "Documento extenso: se prepara una síntesis intermedia; puede perder matices. Revisa la fuente.";
+    public static final String BRIEF_EXTRACT = "Extracción JSON";
+    public static final String BRIEF_VALIDATE = "Validación JSON";
+    public static final String BRIEF_JSON_INVALID = "Ollama no devolvió una ficha JSON válida: %s";
+    public static final String BRIEF_SCHEMA_ERROR = "El valor %s no cumple el esquema de la ficha.";
+    public static final String BRIEF_EVIDENCE_ERROR = "La tarea contiene una evidencia, responsable o fecha que no aparece literalmente en el documento.";
+    public static final String BRIEF_WARNING = "Ficha generada por un modelo: verifica los datos contra el documento original.";
+    public static final String TASK_CONTEXT_ERROR = "El contenido, las instrucciones y el esquema no caben con margen en numCtx. Aumenta numCtx o reduce el contenido/top-k; no se ha truncado.";
+    public static final String TASK_OUTPUT_ERROR = "No se pudo guardar la salida en %s: %s";
+    public static final String TASK_OUTPUT_OPTION = "Guarda la salida completa en un archivo nuevo, sin sobrescribir.";
+    public static final String WRITE_INSTRUCTION = "Instrucción de redacción, por ejemplo: redacta una introducción académica.";
+    public static final String WRITE_LANGUAGE_OPTION = "Idioma de salida: español/es/spanish o inglés/en/english; por defecto, el de la instrucción.";
+    public static final String WRITE_TOP_K_OPTION = "Fragmentos a recuperar (por defecto: writeTopK de la configuración, inicialmente 12).";
+    public static final String WRITE_TOP_K_INVALID = "writeTopK debe ser >= 1.";
+    public static final String WRITE_COVERAGE = "Cobertura parcial: se usan hasta %d fragmentos recuperados, no todo el corpus. No se garantiza una síntesis exhaustiva.";
+    public static final String WRITE_RETRIEVE = "Recuperación de fuentes";
+    public static final String WRITE_GENERATE = "Redacción Markdown";
+    public static final String WRITE_NO_CONTEXT = "No hay fragmentos relevantes para redactar. Revisa el índice o minScore.";
+    public static final String WRITE_EMPTY = "El modelo devolvió una redacción vacía.";
+    public static final String WRITE_INVALID_CITATION = "La redacción no incluye citas numéricas válidas a los fragmentos recuperados, o cita fuentes inexistentes.";
+    public static final String WRITE_SOURCES = "## Fuentes recuperadas";
+    public static final String WRITE_SOURCES_EN = "## Retrieved sources";
+    public static final String WRITE_NOTICE_EN = "> Partial coverage: this draft uses retrieved excerpts, not the entire corpus.";
+
     private Messages() {
         // Clase de constantes.
     }

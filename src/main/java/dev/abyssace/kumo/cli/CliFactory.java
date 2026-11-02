@@ -16,6 +16,8 @@ import dev.abyssace.kumo.rag.IndexingService;
 import dev.abyssace.kumo.rag.RagService;
 import dev.abyssace.kumo.store.VectorStore;
 import dev.abyssace.kumo.summarize.SummaryService;
+import dev.abyssace.kumo.task.BriefService;
+import dev.abyssace.kumo.task.WriteService;
 import java.nio.file.Path;
 import java.util.Objects;
 
@@ -39,6 +41,15 @@ public final class CliFactory {
     public static SummaryService summary(AppConfig config, OllamaClient client) {
         return new SummaryService(llm(config, client),
                 new HeuristicTokenEstimator(), config);
+    }
+
+    public static BriefService brief(AppConfig config, OllamaClient client) {
+        return new BriefService(llm(config, client), new HeuristicTokenEstimator(), config);
+    }
+
+    public static WriteService write(AppConfig config, VectorStore store, OllamaClient client) {
+        return new WriteService(embedder(config, client), store, llm(config, client), config,
+                new HeuristicTokenEstimator());
     }
 
     public static Embedder embedder(AppConfig config, OllamaClient client) {
